@@ -29,6 +29,10 @@ from .configuration_gpt2 import GPT2Config
 from .file_utils import add_start_docstrings, add_start_docstrings_to_callable
 from .modeling_utils import Conv1D, PreTrainedModel, SequenceSummary, prune_conv1d_layer
 
+import torch.utils.checkpoint
+
+# try repo checkpoint
+import checkpoint as cp
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +108,7 @@ class Attention(nn.Module):
         n_state = nx  # in Attention: n_state=768 (nx=n_embd)
         # [switch nx => n_state from Block to Attention to keep identical to TF implem]
         assert n_state % config.n_head == 0
-        self.register_buffer(
-            "bias", torch.tril(torch.ones((n_ctx, n_ctx), dtype=torch.uint8)).view(1, 1, n_ctx, n_ctx)
-        )
-        self.register_buffer("masked_bias", torch.tensor(-1e4))
+        self.register_buffer("bias", torch.tril(torch.ones(n_ctx, n_ctx)).view(1, 1, n_ctx, n_ctx))
         self.n_head = config.n_head
         self.split_size = n_state
         self.scale = scale
@@ -145,8 +146,8 @@ class Attention(nn.Module):
         if self.scale:
             w = w / math.sqrt(v.size(-1))
         nd, ns = w.size(-2), w.size(-1)
-        mask = self.bias[:, :, ns - nd : ns, :ns]
-        w = torch.where(mask, w, self.masked_bias)
+        b = self.bias[:, :, ns - nd : ns, :ns]
+        w = w * b - 1e4 * (1 - b)
 
         if attention_mask is not None:
             # Apply the attention mask
@@ -235,7 +236,12 @@ class Block(nn.Module):
         x = x + m
 
         outputs = [x] + output_attn[1:]
-        return outputs  # x, present, (attentions)
+
+        # put in format to return
+        
+
+        # return outputs  # x, present, (attentions)
+        return tuple(outputs)
 
 
 class GPT2PreTrainedModel(PreTrainedModel):
@@ -483,9 +489,20 @@ class GPT2Model(GPT2PreTrainedModel):
             if self.output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states.view(*output_shape),)
 
-            outputs = block(
-                hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
-            )
+            ## Original:
+            # outputs = block(
+            #     hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
+            # )
+
+            ## Try gradient checkpointing.
+            # Pytorch example
+            # print(i)
+            # print("using checkpoint.")
+            outputs = torch.utils.checkpoint.checkpoint(block, hidden_states, layer_past, attention_mask, head_mask[i])
+            # print(outputs)
+
+            # Repo example
+            # outputs = cp.CheckpointFunction.apply(block, 4, hidden_states, layer_past, attention_mask, head_mask[i])
 
             hidden_states, present = outputs[:2]
             if self.output_past:
@@ -497,6 +514,7 @@ class GPT2Model(GPT2PreTrainedModel):
         hidden_states = self.ln_f(hidden_states)
 
         hidden_states = hidden_states.view(*output_shape)
+        
         # Add last hidden state
         if self.output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
