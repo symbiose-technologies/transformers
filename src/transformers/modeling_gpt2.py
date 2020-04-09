@@ -32,7 +32,6 @@ from .modeling_utils import Conv1D, PreTrainedModel, SequenceSummary, prune_conv
 import torch.utils.checkpoint
 
 # try repo checkpoint
-import checkpoint as cp
 
 logger = logging.getLogger(__name__)
 
