@@ -2,6 +2,8 @@
 
 ## Change log
 
+20-04-15 - Updated GPT2 Double Head model to include parameter for gradient-checkpointing (default = bool:False).
+
 20-04-10 - Added "ignore_index" parameter to CrossEntropyLoss() under the GPT2 Double Head model.
 
 20-04-05 - Added gradient checkpointing functionality to GPT-2 modeling (modeling_gpt2.py) from Pytorch repo. There's now a boolean checkpoint in the model's forward pass to specify if you want to use gradient checkpointing. Gradient checkpointing trades compute time for memory and can be useful in freeing up GPU RAM for larger models.
