@@ -666,6 +666,7 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
         lm_labels=None,
         mc_labels=None,
         ignore_index = -1,
+        checkpoint = False
     ):
         r"""
         mc_token_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, num_choices)`, `optional`, default to index of the last token of the input)
@@ -740,6 +741,7 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
+            checkpoint = checkpoint,
         )
 
         hidden_states = transformer_outputs[0]
