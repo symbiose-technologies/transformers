@@ -493,9 +493,9 @@ class GPT2Model(GPT2PreTrainedModel):
 
             # Gradient checkpointing here.
             if not checkpoint:
-            outputs = block(
-                hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
-            )
+                outputs = block(
+                    hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
+                )
             else:
                 outputs = torch.utils.checkpoint.checkpoint(block, hidden_states, layer_past, attention_mask, head_mask[i])
 
