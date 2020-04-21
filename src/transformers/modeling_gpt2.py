@@ -326,6 +326,8 @@ GPT2_INPUTS_DOCSTRING = r"""
             Optionally, instead of passing :obj:`input_ids` you can choose to directly pass an embedded representation.
             This is useful if you want more control over how to convert `input_ids` indices into associated vectors
             than the model's internal embedding lookup matrix.
+
+        checkpoint (:bool, defaults to False): Using gradient checkpointing to speed up backpropagation in recalculating forward pass.
 """
 
 
@@ -371,6 +373,7 @@ class GPT2Model(GPT2PreTrainedModel):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        checkpoint = False,
     ):
         r"""
     Return:
@@ -488,20 +491,13 @@ class GPT2Model(GPT2PreTrainedModel):
             if self.output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states.view(*output_shape),)
 
-            ## Original:
-            # outputs = block(
-            #     hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
-            # )
-
-            ## Try gradient checkpointing.
-            # Pytorch example
-            # print(i)
-            # print("using checkpoint.")
-            outputs = torch.utils.checkpoint.checkpoint(block, hidden_states, layer_past, attention_mask, head_mask[i])
-            # print(outputs)
-
-            # Repo example
-            # outputs = cp.CheckpointFunction.apply(block, 4, hidden_states, layer_past, attention_mask, head_mask[i])
+            # Gradient checkpointing here.
+            if not checkpoint:
+            outputs = block(
+                hidden_states, layer_past=layer_past, attention_mask=attention_mask, head_mask=head_mask[i]
+            )
+            else:
+                outputs = torch.utils.checkpoint.checkpoint(block, hidden_states, layer_past, attention_mask, head_mask[i])
 
             hidden_states, present = outputs[:2]
             if self.output_past:
@@ -669,6 +665,7 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
         mc_token_ids=None,
         lm_labels=None,
         mc_labels=None,
+        ignore_index = -1,
     ):
         r"""
         mc_token_ids (:obj:`torch.LongTensor` of shape :obj:`(batch_size, num_choices)`, `optional`, default to index of the last token of the input)
@@ -752,13 +749,13 @@ class GPT2DoubleHeadsModel(GPT2PreTrainedModel):
 
         outputs = (lm_logits, mc_logits) + transformer_outputs[1:]
         if mc_labels is not None:
-            loss_fct = CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss(ignore_index=ignore_index)
             loss = loss_fct(mc_logits.view(-1, mc_logits.size(-1)), mc_labels.view(-1))
             outputs = (loss,) + outputs
         if lm_labels is not None:
             shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = lm_labels[..., 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss(ignore_index=ignore_index)
             loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
             outputs = (loss,) + outputs
 
