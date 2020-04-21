@@ -1,4 +1,4 @@
-# InwordsNLP Fork of Huggingface Transformers Repo:
+# InwordsNLP Fork of Huggingface Transformers Repo
 
 ## Change log
 
@@ -8,7 +8,7 @@
 
 20-04-05 - Added gradient checkpointing functionality to GPT-2 modeling (modeling_gpt2.py) from Pytorch repo. There's now a boolean checkpoint in the model's forward pass to specify if you want to use gradient checkpointing. Gradient checkpointing trades compute time for memory and can be useful in freeing up GPU RAM for larger models.
 
-# Huggingface Documentation:
+# Huggingface Documentation
 <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/huggingface/transformers/master/docs/source/imgs/transformers_logo_name.png" width="400"/>
